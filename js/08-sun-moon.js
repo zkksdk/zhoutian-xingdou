@@ -48,7 +48,7 @@ const sunMat = new THREE.ShaderMaterial({
       float rim = 1.0 - abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
       col += vec3(1.0, 0.5, 0.15) * pow(rim, 2.5) * 1.2;
 
-      col *= (1.4 + uFlash * 2.5);
+      col *= (1.1 + min(uFlash, 1.0) * 0.8);
       gl_FragColor = vec4(col, 1.0);
     }
   `
@@ -93,7 +93,7 @@ const moonMat = new THREE.ShaderMaterial({
       float rim = 1.0 - abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
       col += vec3(0.55, 0.80, 1.0) * pow(rim, 2.2) * 1.1;
 
-      col *= (1.1 + uFlash * 2.0);
+      col *= (1.0 + min(uFlash, 1.0) * 0.7);
       gl_FragColor = vec4(col, 1.0);
     }
   `
@@ -123,16 +123,16 @@ const glowTex = makeGlowTexture();
 
 const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({
   map: glowTex, color: 0xffaa44, transparent: true,
-  blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.95
+  blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.70
 }));
-sunGlow.scale.set(28, 28, 1);
+sunGlow.scale.set(16, 16, 1);
 coreGroup.add(sunGlow);
 
 const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
   map: glowTex, color: 0x66bbff, transparent: true,
-  blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.85
+  blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.60
 }));
-moonGlow.scale.set(22, 22, 1);
+moonGlow.scale.set(12, 12, 1);
 coreGroup.add(moonGlow);
 
 /* ---------- 日月能量纽带 ---------- */
@@ -217,3 +217,4 @@ coreGroup.add(promPoints);
 
 
 export { coreGroup, sunMat, sun, moonMat, moon, makeGlowTexture, glowTex, sunGlow, moonGlow, bondMat, bondMesh, PROM_N, promGeo, promPos, promCol, promSize, promData, promMat, promPoints };
+
