@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>渲染自检</title>
+<style>
+  body { background:#0b0d14; color:#cfe1ff; font:13px/1.75 ui-monospace, Menlo, Consolas, monospace; margin:0; padding:14px 14px 60px; }
+  h2 { font-size:14px; color:#8fb6ff; font-weight:400; letter-spacing:.08em; margin:18px 0 4px; border-bottom:1px solid #23304d; padding-bottom:4px; }
+  p  { margin:4px 0; word-break:break-all; }
+  .ok  { color:#6ee7a8; }
+  .bad { color:#ff7b7b; }
+  .dim { color:#7b8aa8; }
+</style>
+</head>
+<body>
+<h2>① 环境</h2><div id="env"></div>
+<h2>② WebGL 能力</h2><div id="gl"></div>
+<h2>③ three.js（CDN）渲染测试</h2><div id="three"></div>
+<h2>④ 本工程模块加载测试</h2><div id="mod"></div>
+<h2>⑤ 页面错误</h2><div id="err"><p class="dim">（暂无）</p></div>
+
+<script>
+(function () {
+  function line(id, txt, cls) {
+    var d = document.getElementById(id);
+    if (d.firstChild && d.firstChild.className === 'dim') d.innerHTML = '';
+    var p = document.createElement('p');
+    p.className = cls || '';
+    p.textContent = txt;
+    d.appendChild(p);
+  }
+  window.onerror = function (m) { line('err', 'ERR: ' + m, 'bad'); };
+  addEventListener('unhandledrejection', function (e) { line('err', 'REJ: ' + e.reason, 'bad'); });
+
+  /* ① 环境 */
+  line('env', 'UA: ' + navigator.userAgent);
+  line('env', '窗口: ' + innerWidth + '×' + innerHeight + '   DPR=' + (window.devicePixelRatio || 1));
+  line('env', '协议: ' + location.protocol + '   href: ' + location.href.slice(0, 70));
+  line('env', 'ESM import / importmap: ' + ('noModule' in HTMLScriptElement.prototype ? '支持 ✓' : '不支持 ✗'),
+       ('noModule' in HTMLScriptElement.prototype ? 'ok' : 'bad'));
+
+  /* ② WebGL */
+  var g2 = null;
+  try {
+    var c = document.createElement('canvas'); c.width = c.height = 64;
+    g2 = c.getContext('webgl2');
+    var g1 = g2 || c.getContext('webgl') || c.getContext('experimental-webgl');
+    line('gl', 'WebGL2: ' + (g2 ? '支持 ✓' : '不支持 ✗'), g2 ? 'ok' : 'bad');
+    line('gl', 'WebGL1: ' + (g1 ? '支持 ✓' : '不支持 ✗'), g1 ? 'ok' : 'bad');
+    if (g1) {
+      var dbg = g1.getExtension('WEBGL_debug_renderer_info');
+      line('gl', 'GPU: ' + (dbg ? g1.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : g1.getParameter(g1.RENDERER)));
+      var hf = g2 ? (g2.getExtension('EXT_color_buffer_half_float') || g2.getExtension('EXT_color_buffer_float')) : null;
+      line('gl', 'half-float 颜色缓冲（辉光后处理要用）: ' + (hf ? '支持 ✓' : '不支持 ✗'), hf ? 'ok' : 'bad');
+      g1.clearColor(1, 0, 0, 1);
+      g1.clear(g1.COLOR_BUFFER_BIT);
+      var px = new Uint8Array(4);
+      g1.readPixels(0, 0, 1, 1, g1.RGBA, g1.UNSIGNED_BYTE, px);
+      line('gl', '清屏后回读像素: ' + px.join(',') + (px[0] > 200 ? '  ✓' : '  ✗ 画不进去'), px[0] > 200 ? 'ok' : 'bad');
+      var vs = g1.createShader(g1.VERTEX_SHADER);
+      g1.shaderSource(vs, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}'); g1.compileShader(vs);
+      var fs = g1.createShader(g1.FRAGMENT_SHADER);
+      g1.shaderSource(fs, 'precision highp float;void main(){gl_FragColor=vec4(1.0);}'); g1.compileShader(fs);
+      var pr = g1.createProgram(); g1.attachShader(pr, vs); g1.attachShader(pr, fs); g1.linkProgram(pr);
+      var linked = g1.getProgramParameter(pr, g1.LINK_STATUS);
+      line('gl', '着色器编译/链接: ' + (linked ? '通过 ✓' : '失败 ✗ ' + g1.getProgramInfoLog(pr)), linked ? 'ok' : 'bad');
+    }
+  } catch (e) { line('gl', '异常: ' + e.message, 'bad'); }
+
+  /* ③ three.js 动态导入 + 离屏渲染 */
+  (async function () {
+    try {
+      var t0 = performance.now();
+      var T = await import('https://unpkg.com/three@0.160.0/build/three.module.js');
+      line('three', 'import three 成功 ✓  ' + (performance.now() - t0).toFixed(0) + ' ms', 'ok');
+      var r = new T.WebGLRenderer({ antialias: false });
+      r.setSize(64, 64);
+      var sc = new T.Scene(), cam = new T.PerspectiveCamera(50, 1, 0.1, 100);
+      cam.position.z = 3;
+      sc.add(new T.Mesh(new T.BoxGeometry(1, 1, 1), new T.MeshBasicMaterial({ color: 0xff5533 })));
+      r.render(sc, cam);
+      var n = document.createElement('canvas'); n.width = n.height = 64;
+      var ctx = n.getContext('2d');
+      ctx.drawImage(r.domElement, 0, 0, 64, 64);
+      var d = ctx.getImageData(0, 0, 64, 64).data, sum = 0;
+      for (var i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+      line('three', '离屏渲染亮度: ' + sum + (sum > 1000 ? '  ✓ 能渲染' : '  ✗ 全黑'), sum > 1000 ? 'ok' : 'bad');
+      line('three', 'Renderer 用到的上下文: ' + (r.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1'));
+    } catch (e) {
+      line('three', '失败 ✗ ' + e.message, 'bad');
+    }
+
+    /* ④ 本工程模块是否能被这个容器加载 */
+    try {
+      var m1 = await import('./js/00-utils.js');
+      line('mod', "相对路径 './js/00-utils.js': 成功 ✓  (isMobile=" + m1.isMobile + ")", 'ok');
+    } catch (e) { line('mod', "相对路径 './js/00-utils.js': 失败 ✗ " + e.message, 'bad'); }
+    try {
+      var m2 = await import('minis://workspace/zhoutian-xingdou/js/00-utils.js');
+      line('mod', '绝对 minis:// 路径: 成功 ✓', 'ok');
+    } catch (e) { line('mod', '绝对 minis:// 路径: 失败 ✗ ' + e.message, 'bad'); }
+    try {
+      var t1 = await fetch('./js/main.js').then(function (r) { return r.text(); });
+      line('mod', 'fetch 相对路径模板: ' + (t1.indexOf('import') >= 0 ? '成功 ✓' : '内容异常'), t1.indexOf('import') >= 0 ? 'ok' : 'bad');
+    } catch (e) { line('mod', 'fetch 相对路径: 失败 ✗ ' + e.message, 'bad'); }
+
+    line('mod', '—— 把这一屏截图发我，就能定位到底卡在哪一步 ——', 'dim');
+  })();
+})();
+</script>
+</body>
+</html>
