@@ -18,9 +18,9 @@ composer.addPass(new RenderPass(scene, camera));
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(innerWidth, innerHeight),
-  isMobile ? 0.85 : 1.18,
-  0.72,
-  0.20
+  isMobile ? 0.45 : 0.65,   // 强度（原 0.85 / 1.18，移动端过曝严重）
+  0.45,                     // 半径（原 0.72，缩小光晕扩散范围）
+  0.65                      // 阈值（原 0.20，只让真正高亮的星点发光）
 );
 composer.addPass(bloomPass);
 
@@ -82,6 +82,10 @@ const FinalShader = {
       col = (col - 0.5) * 1.06 + 0.5;
       col = max(col, 0.0);
 
+      // ===== 高光压制（Reinhard 软切，防止移动端白茫茫一片）=====
+      col = col / (col + vec3(0.85));
+      col *= 1.35;   // 补偿整体变暗（还嫌亮就调到 1.1 或 1.0）
+
       // 边缘微暗红晕
       col += vec3(0.06, 0.02, 0.0) * smoothstep(0.75, 1.35, d * 1.4);
 
@@ -94,3 +98,4 @@ composer.addPass(finalPass);
 
 
 export { composer, bloomPass, FinalShader, finalPass };
+
