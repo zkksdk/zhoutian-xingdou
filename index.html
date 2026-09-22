@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>周天星斗大阵</title>
+<link rel="stylesheet" href="./css/style.css" />
+<script>
+  /* 调试钩子：把运行期错误收集到 window.__errs（不影响运行，可删） */
+  window.__errs = [];
+  addEventListener('error', function (e) { window.__errs.push(String((e && (e.message || e.error)) || e)); });
+  addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + e.reason); });
+</script>
+
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="title">周 天 星 斗 大 阵</div>
+<div id="hud">拖拽旋转 · 滚轮缩放 · 悬停星位</div>
+<div id="nameTag"></div>
+<div id="loading">布 阵 中 …</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="./js/main.js"></script>
+
+</body>
+</html>
