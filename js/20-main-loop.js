@@ -92,12 +92,12 @@ function animate() {
 
   sunGlow.position.copy(sunPos);
   moonGlow.position.copy(moonPos);
-  sunGlow.scale.setScalar(26 + pulse * 12 + U.coreFlash.value * 40);
-  moonGlow.scale.setScalar(20 + pulse2 * 9 + U.coreFlash.value * 34);
-  sunGlow.material.opacity = 0.75 + pulse * 0.25;
-  moonGlow.material.opacity = 0.65 + pulse2 * 0.25;
-  sunGlow.material.color.setHSL(0.09, 1.0, 0.5 + pulse * 0.15);
-  moonGlow.material.color.setHSL(0.56, 0.85, 0.6 + pulse2 * 0.15);
+  sunGlow.scale.setScalar(16 + pulse * 6 + U.coreFlash.value * 15);
+  moonGlow.scale.setScalar(12 + pulse2 * 5 + U.coreFlash.value * 12);
+  sunGlow.material.opacity = 0.50 + pulse * 0.20;
+  moonGlow.material.opacity = 0.40 + pulse2 * 0.20;
+  sunGlow.material.color.setHSL(0.09, 1.0, 0.40 + pulse * 0.10);
+  moonGlow.material.color.setHSL(0.56, 0.85, 0.50 + pulse2 * 0.10);
 
   /* ---------- 能量纽带 ---------- */
   {
@@ -264,7 +264,7 @@ function animate() {
     events.overloadT += dt;
     const k = Math.max(0, 1 - events.overloadT / 3.5);
     U.overload.value = k;
-    U.bright.value = 1.0 + k * 1.4;
+    U.bright.value = 1.0 + k * 0.4;   // 原 1.4 —— 过载时不再把画面顶爆
     U.coreFlash.value = Math.max(U.coreFlash.value, k * 0.9);
     if (events.overloadT > 3.5) {
       events.overloadT = -1;
@@ -398,3 +398,4 @@ function animate() {
 
 
 export { clock, frameAcc, frameCount, scheduleChain, chainClock, animate };
+
