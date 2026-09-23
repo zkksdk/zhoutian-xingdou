@@ -68,3 +68,4 @@ function applyCamera() {
 
 
 export { canvas, renderer, scene, camera, U, orbit, mouse, applyCamera, updateScale };
+
