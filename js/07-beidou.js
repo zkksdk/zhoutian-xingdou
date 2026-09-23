@@ -195,3 +195,4 @@ for (let i = 0; i < 7; i++) {
 
 
 export { BEIDOU_NAMES, beidouLocal, BEIDOU_SCALE, BEIDOU_OFFSET, beidouGroup, beidouStars, trailLen, trailPoints, trailData };
+
