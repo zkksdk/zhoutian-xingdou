@@ -19,6 +19,7 @@ import { ripples } from './15-ripples.js';
 import { events, triggerOverload, triggerTaiji, triggerBeast } from './16-events.js';
 import { composer, bloomPass, finalPass } from './17-postfx.js';
 import { tmpV, updateHover } from './19-hover.js';
+import { intro, applyIntro, applyIntroLate } from './22-intro.js';
 
 /* ============================================================
    20. 主循环
@@ -113,6 +114,9 @@ function animate() {
     fpsAcc = 0; fpsFrames = 0;
   }
 
+  /* ---------- 展开动画（创世序列）：驱动相机与全局参数，展开期接管随机事件 ---------- */
+  applyIntro(dt);
+
   U.time.value = t;
   chainClock += dt;
 
@@ -198,7 +202,7 @@ function animate() {
   }
 
   /* ---------- 周天扫描 ---------- */
-  if (t - events.lastScan > (isMobile ? 11 : 8.5)) {
+  if (!intro.active && t - events.lastScan > (isMobile ? 11 : 8.5)) {
     events.lastScan = t;
     events.scanT = 0;
   }
@@ -229,7 +233,7 @@ function animate() {
       chainScheduled.splice(i, 1);
     }
   }
-  if (chainClock > rr(1.6, 4.2)) {
+  if (!intro.active && chainClock > rr(1.6, 4.2)) {
     chainClock = 0;
     scheduleChain();
   }
@@ -271,8 +275,8 @@ function animate() {
     trailGeo.attributes.position.needsUpdate = true;
   }
 
-  /* ---------- 北斗连珠 / 指向 ---------- */
-  {
+  /* ---------- 北斗连珠 / 指向（展开期由 22-intro 接管 aGlow） ---------- */
+  if (!intro.active) {
     const bdGeo = beidouGroup.userData.geo;
     const glow = bdGeo.attributes.aGlow.array;
     const phase = (t % 12) / 12;
@@ -290,8 +294,8 @@ function animate() {
     }
   }
 
-  /* ---------- 四象神兽呼吸 ---------- */
-  beasts.forEach((b, i) => {
+  /* ---------- 四象神兽呼吸（展开期由 22-intro 接管） ---------- */
+  if (!intro.active) beasts.forEach((b, i) => {
     b.boostU.value *= Math.pow(0.35, dt);
     b.eyeTimer -= dt;
     if (b.eyeTimer <= 0) {
@@ -301,7 +305,7 @@ function animate() {
   });
 
   /* ---------- 神兽降临 ---------- */
-  if (t - events.lastBeast > rr(14, 22)) {
+  if (!intro.active && t - events.lastBeast > rr(14, 22)) {
     events.lastBeast = t;
     triggerBeast(Math.floor(Math.random() * 4));
     U.scanI.value = Math.max(U.scanI.value, 0.9);
@@ -309,7 +313,7 @@ function animate() {
   }
 
   /* ---------- 三垣共鸣（超载） ---------- */
-  if (t - events.lastOverload > 26) {
+  if (!intro.active && t - events.lastOverload > 26) {
     events.lastOverload = t;
     triggerOverload();
   }
@@ -324,12 +328,12 @@ function animate() {
       U.bright.value = 1.0;
       U.overload.value = 0;
     }
-  } else {
+  } else if (!intro.active) {
     U.bright.value += (1.0 - U.bright.value) * dt * 3;
   }
 
   /* ---------- 日月同辉 ---------- */
-  if (t - events.lastTaiji > 24) {
+  if (!intro.active && t - events.lastTaiji > 24) {
     events.lastTaiji = t;
     triggerTaiji();
   }
@@ -349,7 +353,7 @@ function animate() {
   U.coreFlash.value *= Math.pow(0.12, dt);
 
   /* ---------- 星河倒灌 ---------- */
-  if (!infState.active && t - events.lastInf > 30) {
+  if (!intro.active && !infState.active && t - events.lastInf > 30) {
     events.lastInf = t;
     startInfall();
   }
@@ -397,7 +401,7 @@ function animate() {
   }
 
   /* ---------- 流星 ---------- */
-  if (Math.random() < dt * 0.55) spawnMeteor();
+  if (!intro.active && Math.random() < dt * 0.55) spawnMeteor();
   for (const m of meteors) {
     if (!m.active) continue;
     m.life -= dt;
@@ -444,6 +448,9 @@ function animate() {
 
   /* ---------- 悬停 ---------- */
   updateHover();
+
+  /* ---------- 展开动画的收尾覆盖（日月核心 / 纽带 / 符文 / 光柱） ---------- */
+  applyIntroLate();
 
   /* ---------- 渲染 ---------- */
   composer.render();
