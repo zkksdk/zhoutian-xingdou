@@ -29,7 +29,9 @@ const FinalShader = {
     tDiffuse: { value: null },
     uTime: { value: 0 },
     uRes: { value: new THREE.Vector2(innerWidth, innerHeight) },
-    uShake: { value: 0 }
+    uShake: { value: 0 },
+    uVigBoost: { value: 0 },   /* 展开动画：0=正常暗角，1=四周压成纯黑 */
+    uExpo: { value: 1 }        /* 展开动画：整体曝光 */
   },
   vertexShader: `
     varying vec2 vUv;
@@ -43,6 +45,8 @@ const FinalShader = {
     uniform float uTime;
     uniform vec2 uRes;
     uniform float uShake;
+    uniform float uVigBoost;
+    uniform float uExpo;
     varying vec2 vUv;
 
     float hash(vec2 p){
@@ -70,9 +74,10 @@ const FinalShader = {
       col.g = texture2D(tDiffuse, uv).g;
       col.b = texture2D(tDiffuse, uv + off).b;
 
-      // 暗角
+      // 暗角（uVigBoost 让展开初期四周压成纯黑）
       float vig = smoothstep(1.25, 0.18, d * 1.42);
-      col *= mix(0.42, 1.0, vig);
+      col *= mix(mix(0.42, 0.015, uVigBoost), 1.0, vig);
+      col *= uExpo;
 
       // 胶片颗粒
       float g = hash(uv * uRes + vec2(uTime * 173.0, uTime * 91.0));
