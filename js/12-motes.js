@@ -11,7 +11,7 @@ import { quadrantColor } from './04-starfield.js';
 /* ============================================================
    12. 星尘粒子（阵周围漂浮）
    ============================================================ */
-(function buildMotes() {
+const motePoints = (function buildMotes() {
   const N = isMobile ? 700 : 1800;
   const pos = new Float32Array(N * 3);
   const col = new Float32Array(N * 3);
@@ -48,10 +48,10 @@ import { quadrantColor } from './04-starfield.js';
   g.setAttribute('aSpeed', new THREE.BufferAttribute(speed, 1));
 
   const m = new THREE.ShaderMaterial({
-    uniforms: { uTime: U.time, uScale: U.scale, uBright: U.bright },
+    uniforms: { uTime: U.time, uScale: U.scale, uBright: U.bright, uAlpha: { value: 1 } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `
-      uniform float uTime, uScale, uBright;
+      uniform float uTime, uScale, uBright, uAlpha;
       attribute float aSize, aPhase, aRadius, aSpeed;
       attribute vec3 aColor;
       varying vec3 vColor; varying float vA;
@@ -66,8 +66,8 @@ import { quadrantColor } from './04-starfield.js';
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         float tw = 0.5 + 0.5 * sin(uTime * 1.6 + aPhase * 6.2831);
         vColor = aColor * uBright;
-        vA = tw * 0.85;
-        gl_PointSize = clamp(aSize * uScale / max(0.001, -mv.z), 0.5, 16.0);
+        vA = tw * 0.85 * uAlpha;
+        gl_PointSize = clamp(aSize * uScale / max(0.001, -mv.z), 0.0, 16.0);
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -85,6 +85,9 @@ import { quadrantColor } from './04-starfield.js';
   const pts = new THREE.Points(g, m);
   pts.frustumCulled = false;
   arrayGroup.add(pts);
+  return pts;
 })();
+
+export { motePoints };
 
 
