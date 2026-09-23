@@ -13,3 +13,4 @@ scene.add(arrayGroup);
 
 
 export { arrayGroup };
+
