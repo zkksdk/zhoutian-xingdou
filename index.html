@@ -6,10 +6,39 @@
 <title>周天星斗大阵</title>
 <link rel="stylesheet" href="./css/style.css" />
 <script>
-  /* 调试钩子：把运行期错误收集到 window.__errs（不影响运行，可删） */
+  /* ---------- 运行状态兜底：任何失败都在屏幕上说清楚，不再「全黑且不知道为什么」 ---------- */
   window.__errs = [];
-  addEventListener('error', function (e) { window.__errs.push(String((e && (e.message || e.error)) || e)); });
-  addEventListener('unhandledrejection', function (e) { window.__errs.push('rejection: ' + e.reason); });
+  (function () {
+    try {
+      var t = document.createElement('canvas');
+      if (!t.getContext('webgl2') && !t.getContext('webgl')) window.__noGL = 1;
+    } catch (e) { window.__noGL = 1; }
+  })();
+  window.__diag = function (msg) {
+    var d = document.getElementById('errBar');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = 'errBar';
+      d.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;background:rgba(120,12,12,.92);' +
+        'color:#ffe9c8;font:12px/1.6 ui-monospace,Menlo,monospace;padding:8px 10px;white-space:pre-wrap;word-break:break-all;';
+      document.body.appendChild(d);
+    }
+    d.textContent += (d.textContent ? '\n' : '') + msg;
+  };
+  addEventListener('error', function (e) {
+    window.__errs.push(String((e && (e.message || e.error)) || e));
+    window.__diag('运行错误：' + ((e && e.message) || e));
+  });
+  addEventListener('unhandledrejection', function (e) {
+    window.__errs.push('rejection: ' + e.reason);
+    window.__diag('资源加载失败：' + e.reason + '（若是 three.js，检查 vendor/ 是否存在）');
+  });
+  /* 定时自检：模块没跑起来 / 不支持 WebGL，都把原因写到屏幕上 */
+  setTimeout(function () {
+    if (window.__booted) return;
+    if (window.__noGL) window.__diag('此设备或浏览器不支持 WebGL，无法渲染星阵');
+    else window.__diag('主模块未启动（three.js 或 js 模块加载失败，检查控制台与 vendor/ 目录）');
+  }, 8000);
 </script>
 
 </head>
@@ -24,8 +53,8 @@
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
   }
 }
 </script>
