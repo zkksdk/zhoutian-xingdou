@@ -84,3 +84,4 @@ const infState = {
 };
 
 export { INF_N, infGeo, infPos, infCol, infSize, infData, infMat, infPoints, infState, startInfall };
+
