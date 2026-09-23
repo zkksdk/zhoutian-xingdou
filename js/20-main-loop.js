@@ -4,7 +4,7 @@
    ============================================================ */
 import * as THREE from 'three';
 import { isMobile, rnd, rr } from './00-utils.js';
-import { U, applyCamera } from './01-core.js';
+import { renderer, U, applyCamera, updateScale } from './01-core.js';
 import { arrayGroup } from './03-array-root.js';
 import { layers, chainScheduled } from './04-starfield.js';
 import { beasts } from './06-beasts.js';
@@ -17,7 +17,7 @@ import { meteors, spawnMeteor } from './13-meteors.js';
 import { INF_N, infGeo, infData, infPoints, infState, startInfall } from './14-infall.js';
 import { ripples } from './15-ripples.js';
 import { events, triggerOverload, triggerTaiji, triggerBeast } from './16-events.js';
-import { composer, finalPass } from './17-postfx.js';
+import { composer, bloomPass, finalPass } from './17-postfx.js';
 import { tmpV, updateHover } from './19-hover.js';
 
 /* ============================================================
@@ -54,11 +54,64 @@ function scheduleChain() {
 
 let chainClock = 0;
 
+/* ============================================================
+   自适应画质：三级阶梯降级，尽量保住“光感”
+     1 级 → 辉光降半分辨率（依旧有光晕，只是更糊一点）
+     2 级 → 像素比降到 1（省一半以上像素）
+     3 级 → 彻底关掉辉光（最贵的一项：5 级模糊 × 2 个方向）
+   ============================================================ */
+const QUALITY = { level: 0, fps: 60 };
+const DEBUG = /[?&]dbg=1/.test(location.search);
+let running = true, fpsAcc = 0, fpsFrames = 0, lowStreak = 0;
+let dbgEl = null;
+
+function applyQuality() {
+  if (QUALITY.level >= 1) {
+    /* 辉光半分辨率：视觉上只是稍微柔一点，开销明显下降 */
+    bloomPass.setSize(Math.max(1, Math.floor(innerWidth / 2)), Math.max(1, Math.floor(innerHeight / 2)));
+  }
+  if (QUALITY.level >= 2) {
+    renderer.setPixelRatio(1);
+    renderer.setSize(innerWidth, innerHeight);
+    composer.setSize(innerWidth, innerHeight);
+    finalPass.uniforms.uRes.value.set(innerWidth, innerHeight);
+    updateScale();
+  }
+  if (QUALITY.level >= 3) {
+    bloomPass.enabled = false;
+  }
+}
+
+/* 切到后台就停止排帧，回来再接着跑（省电、防过热） */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    running = false;
+  } else if (!running) {
+    running = true;
+    clock.getDelta();
+    requestAnimationFrame(animate);
+  }
+});
+
 function animate() {
+  if (!running) return;
   requestAnimationFrame(animate);
 
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
+
+  /* ---------- 帧率统计 → 自动降级 ---------- */
+  frameCount++;
+  fpsAcc += dt; fpsFrames++;
+  if (fpsAcc >= 1.5) {
+    QUALITY.fps = fpsFrames / fpsAcc;
+    if (QUALITY.fps < 28) {
+      if (++lowStreak >= 3 && QUALITY.level < 3) { QUALITY.level++; applyQuality(); lowStreak = 0; }
+    } else {
+      lowStreak = 0;
+    }
+    fpsAcc = 0; fpsFrames = 0;
+  }
 
   U.time.value = t;
   chainClock += dt;
@@ -394,6 +447,24 @@ function animate() {
 
   /* ---------- 渲染 ---------- */
   composer.render();
+
+  /* ---------- 调试面板（地址后加 ?dbg=1 开启） ---------- */
+  if (DEBUG) {
+    if (!dbgEl) {
+      dbgEl = document.createElement('div');
+      dbgEl.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99;color:#7fe0a0;' +
+        'font:11px/1.45 ui-monospace,Menlo,monospace;background:rgba(0,0,0,.55);' +
+        'padding:4px 7px;border-radius:6px;pointer-events:none;white-space:pre;';
+      document.body.appendChild(dbgEl);
+    }
+    if (frameCount % 20 === 0) {
+      const ri = renderer.info.render;
+      dbgEl.textContent =
+        'FPS ' + QUALITY.fps.toFixed(0) + '   画质 ' + QUALITY.level + '/3\n' +
+        'DPR ' + renderer.getPixelRatio() + '   绘制 ' + ri.calls + '   三角 ' + (ri.triangles / 1000 | 0) + 'k\n' +
+        '辉光 ' + (bloomPass.enabled ? '开' : '关') + '   视口 ' + innerWidth + '×' + innerHeight;
+    }
+  }
 }
 
 
