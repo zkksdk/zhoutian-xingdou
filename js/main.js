@@ -24,6 +24,7 @@ import './17-postfx.js';
 import './18-interaction.js';
 import './19-hover.js';
 import './20-main-loop.js';
+import './22-intro.js';
 import './21-boot.js';
 
 /* 汇总导出（按需取用，非必需） */
