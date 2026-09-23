@@ -45,3 +45,4 @@ arrayGroup.add(taijiMesh);
 
 
 export { taijiMat, taijiMesh };
+
