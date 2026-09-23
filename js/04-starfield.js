@@ -102,11 +102,12 @@ RING_DEFS.forEach((def, li) => {
     uniforms: {
       uTime: U.time, uScale: U.scale,
       uScanR: U.scanR, uScanW: U.scanW, uScanI: U.scanI,
-      uBright: U.bright, uHover: hovU
+      uBright: U.bright, uHover: hovU,
+      uReveal: { value: 999 }          /* 展开动画：由内向外生长的"揭示半径"，默认全显 */
     },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `
-      uniform float uTime, uScale, uScanR, uScanW, uScanI, uBright, uHover;
+      uniform float uTime, uScale, uScanR, uScanW, uScanI, uBright, uHover, uReveal;
       attribute float aSize, aPhase, aGlow, aIndex;
       attribute vec3 aColor;
       varying vec3 vColor;
@@ -117,16 +118,21 @@ RING_DEFS.forEach((def, li) => {
         float dist = length(position.xyz);
         float scan = exp(-pow((dist - uScanR) / uScanW, 2.0));
 
+        /* 展开动画：星位按半径由内向外生长（smoothstep + 轻微过冲，对应 back.out） */
+        float rv = clamp((uReveal - dist) / 3.5, 0.0, 1.0);
+        rv = rv * rv * (3.0 - 2.0 * rv);
+        float pop = 1.0 + 1.8 * rv * (1.0 - rv);
+
         float tw = 0.70 + 0.30 * sin(uTime * 1.7 + aPhase * 6.2831);
         float hov = (abs(aIndex - uHover) < 0.5) ? 1.0 : 0.0;
 
         float g = aGlow + scan * uScanI + hov * 1.6;
-        vGlow = g;
-        vTw = tw;
+        vGlow = g * rv;
+        vTw = tw * rv;
         vColor = aColor * uBright;
 
-        float s = aSize * (1.0 + g * 2.4) * (0.9 + 0.25 * tw) * (1.0 + hov * 0.9);
-        gl_PointSize = clamp(s * uScale / max(0.001, -mv.z), 0.6, 260.0);
+        float s = aSize * rv * pop * (1.0 + g * 2.4) * (0.9 + 0.25 * tw) * (1.0 + hov * 0.9);
+        gl_PointSize = clamp(s * uScale / max(0.001, -mv.z), 0.0, 260.0);
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -198,10 +204,10 @@ RING_DEFS.forEach((def, li) => {
     lgeo.setAttribute('aSpeed', new THREE.BufferAttribute(new Float32Array(lspd), 1));
 
     const lmat = new THREE.ShaderMaterial({
-      uniforms: { uTime: U.time, uBright: U.bright },
+      uniforms: { uTime: U.time, uBright: U.bright, uGrow: { value: 2 } },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       vertexShader: `
-        uniform float uTime, uBright;
+        uniform float uTime, uBright, uGrow;
         attribute vec3 aColor;
         attribute float aT, aSpeed;
         varying vec3 vColor;
@@ -211,6 +217,8 @@ RING_DEFS.forEach((def, li) => {
           float pulse = 0.5 + 0.5 * sin(aT * 42.0 - uTime * aSpeed * 2.4);
           float pulse2 = 0.5 + 0.5 * sin(aT * 9.0 + uTime * 0.7);
           vA = (0.10 + 0.42 * pulse * pulse + 0.12 * pulse2) * uBright;
+          /* 展开动画：连线像发光的蛛丝，从起点向终点爬行生长 */
+          vA *= step(aT, uGrow);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
@@ -253,10 +261,10 @@ RING_DEFS.forEach((def, li) => {
       fgeo.setDrawRange(0, flowN);
 
       const fmat = new THREE.ShaderMaterial({
-        uniforms: { uTime: U.time, uScale: U.scale, uBright: U.bright },
+        uniforms: { uTime: U.time, uScale: U.scale, uBright: U.bright, uGrowR: { value: 999 } },
         transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
         vertexShader: `
-          uniform float uTime, uScale, uBright;
+          uniform float uTime, uScale, uBright, uGrowR;
           attribute vec3 aStart, aEnd, aColor;
           attribute float aPhase, aSpeed;
           varying vec3 vColor;
@@ -266,6 +274,8 @@ RING_DEFS.forEach((def, li) => {
             vec3 p = mix(aStart, aEnd, t);
             vec4 mv = modelViewMatrix * vec4(p, 1.0);
             vA = sin(t * 3.14159) * 0.9 * uBright;
+            /* 展开动画：流光从中心向外逐段点亮 */
+            vA *= clamp((uGrowR - length(mix(aStart, aEnd, 0.5))) / 8.0, 0.0, 1.0);
             vColor = aColor;
             gl_PointSize = clamp(0.30 * uScale / max(0.001, -mv.z), 1.0, 26.0);
             gl_Position = projectionMatrix * mv;
