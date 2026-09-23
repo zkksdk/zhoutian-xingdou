@@ -82,3 +82,5 @@ import { quadrantColor } from './04-starfield.js';
   pts.frustumCulled = false;
   arrayGroup.add(pts);
 })();
+
+
