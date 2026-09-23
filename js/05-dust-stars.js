@@ -11,7 +11,7 @@ import { quadrantColor } from './04-starfield.js';
 /* ============================================================
    5. 副星辰（一万四千八百颗尘星）
    ============================================================ */
-(function buildDustStars() {
+const dustPoints = (function buildDustStars() {
   const N = isMobile ? 5200 : 14800;
   const pos = new Float32Array(N * 3);
   const col = new Float32Array(N * 3);
@@ -46,10 +46,10 @@ import { quadrantColor } from './04-starfield.js';
   g.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
 
   const m = new THREE.ShaderMaterial({
-    uniforms: { uTime: U.time, uScale: U.scale, uBright: U.bright, uScanR: U.scanR, uScanW: U.scanW, uScanI: U.scanI },
+    uniforms: { uTime: U.time, uScale: U.scale, uBright: U.bright, uScanR: U.scanR, uScanW: U.scanW, uScanI: U.scanI, uAlpha: { value: 1 } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `
-      uniform float uTime, uScale, uBright, uScanR, uScanW, uScanI;
+      uniform float uTime, uScale, uBright, uScanR, uScanW, uScanI, uAlpha;
       attribute float aSize, aPhase;
       attribute vec3 aColor;
       varying vec3 vColor;
@@ -60,9 +60,9 @@ import { quadrantColor } from './04-starfield.js';
         float scan = exp(-pow((d - uScanR) / uScanW, 2.0));
         float tw = 0.55 + 0.45 * sin(uTime * 1.35 + aPhase * 6.2831);
         vColor = aColor * uBright;
-        vA = tw * (0.55 + scan * uScanI * 0.7);
-        float s = aSize * (1.0 + scan * uScanI * 0.9);
-        gl_PointSize = clamp(s * uScale / max(0.001, -mv.z), 0.5, 14.0);
+        vA = tw * (0.55 + scan * uScanI * 0.7) * uAlpha;
+        float s = aSize * (1.0 + scan * uScanI * 0.9) * min(1.0, uAlpha * 1.6);
+        gl_PointSize = clamp(s * uScale / max(0.001, -mv.z), 0.0, 14.0);
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -81,6 +81,9 @@ import { quadrantColor } from './04-starfield.js';
   const pts = new THREE.Points(g, m);
   pts.frustumCulled = false;
   arrayGroup.add(pts);
+  return pts;
 })();
+
+export { dustPoints };
 
 
